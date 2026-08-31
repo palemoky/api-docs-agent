@@ -320,9 +320,7 @@ class DocSyncPipeline:
             f"Source commit: {change.commit_sha}"
         )
 
-    def pr_body(
-        self, change: CodeChange, analysis: Analysis, proposals: list[DocProposal]
-    ) -> str:
+    def pr_body(self, change: CodeChange, analysis: Analysis, proposals: list[DocProposal]) -> str:
         lines = [
             "## Why this pull request exists",
             "",

@@ -20,9 +20,7 @@ from ..config import GitHubConfig
 from ..errors import VCSError
 from ..models import PullRequest
 
-_REMOTE_PATTERNS = (
-    re.compile(r"github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?$"),
-)
+_REMOTE_PATTERNS = (re.compile(r"github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?$"),)
 
 
 class ReviewTarget(abc.ABC):
@@ -43,12 +41,13 @@ class ReviewTarget(abc.ABC):
 class GitHubTarget(ReviewTarget):
     def __init__(self, config: GitHubConfig, remote_url: str = "") -> None:
         self.config = config
-        self.repository = config.repository or parse_repository(remote_url)
-        if not self.repository:
+        repository = config.repository or parse_repository(remote_url)
+        if not repository:
             raise VCSError(
                 "Could not determine the GitHub repository. Set github.repository "
                 "in the config or the GITHUB_REPOSITORY environment variable."
             )
+        self.repository: str = repository
         if not config.token:
             raise VCSError(
                 "No GitHub token. Set github.token in the config (it supports "
@@ -92,9 +91,7 @@ class GitHubTarget(ReviewTarget):
     def create_pull_request(self, *, head: str, base: str, title: str, body: str) -> PullRequest:
         existing = self.find_open_pull_request(head=head)
         if existing:
-            self._request(
-                "PATCH", f"/pulls/{existing.number}", json={"title": title, "body": body}
-            )
+            self._request("PATCH", f"/pulls/{existing.number}", json={"title": title, "body": body})
             return existing
 
         data = self._request(

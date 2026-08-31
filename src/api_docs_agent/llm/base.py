@@ -133,4 +133,9 @@ def create_llm(config: LLMConfig) -> LLMProvider:
 
 def _load_builtin_providers() -> None:
     """Import built-in providers lazily so a missing optional SDK is not fatal."""
-    from . import anthropic_provider, echo, openai_compat  # noqa: F401
+    from . import (  # noqa: F401
+        anthropic_provider,
+        echo,
+        litellm_provider,
+        openai_compat,
+    )

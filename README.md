@@ -27,7 +27,7 @@ implementation never requires touching the pipeline.
 
 | Extension point | Contract | Ships with |
 |---|---|---|
-| `LLMProvider` | `complete()`, `complete_json()` | `anthropic`, `openai` (any OpenAI-compatible endpoint), `echo` |
+| `LLMProvider` | `complete()`, `complete_json()` | `anthropic`, `openai` (any OpenAI-compatible endpoint), `litellm` (100+ vendors), `echo` |
 | `DocAdapter` | `prompt_guidance()`, `validate()`, `summarize()` | `openapi`, `markdown` |
 | `Notifier` | `send()` | `console`, `email`, `feishu` |
 | `ReviewTarget` | `default_branch()`, `create_pull_request()` | `github` |
@@ -51,10 +51,11 @@ and if it still fails, the run ends quietly rather than proposing a broken spec.
 ## Install
 
 ```bash
-pip install 'api-docs-agent[anthropic,openapi]'
-# or, for any OpenAI-compatible model:
-pip install 'api-docs-agent[openai,openapi]'
+uv tool install 'api-docs-agent[anthropic,openapi]'   # or: pip install ...
 ```
+
+Extras are the vendor SDKs: `anthropic`, `openai` (any OpenAI-compatible endpoint),
+`litellm` (everything else), and `openapi` for full spec validation.
 
 ## Try it in five minutes
 
@@ -62,20 +63,37 @@ The repository ships a demo FastAPI service and its spec.
 
 ```bash
 git clone https://github.com/Palemoky/api-docs-agent && cd api-docs-agent
-pip install -e '.[anthropic,openapi,dev]'
+uv sync --all-extras
 export ANTHROPIC_API_KEY=...
 
 # 1. Change the API: add an endpoint to examples/demo-service/src/app.py
 git commit -am "feat: add DELETE /users/{user_id}"
 
 # 2. See what the free pre-filter thinks — no model call
-api-docs-agent inspect -c examples/demo-service/.api-docs-agent.yml
+uv run api-docs-agent inspect -c examples/demo-service/.api-docs-agent.yml
 
 # 3. Run the full analysis and print the proposed spec diff, without pushing
-api-docs-agent check -c examples/demo-service/.api-docs-agent.yml --dry-run --show-diff
+uv run api-docs-agent check -c examples/demo-service/.api-docs-agent.yml --dry-run --show-diff
 ```
 
 Drop `--dry-run` (with `GITHUB_TOKEN` set) and it pushes a branch and opens the PR.
+
+## Contributing
+
+The project is managed with [uv](https://docs.astral.sh/uv/). `uv.lock` is committed,
+so every contributor and CI job resolves the same dependency graph.
+
+```bash
+uv sync --all-extras   # create .venv from the lockfile
+uv run pytest -q
+uv run ruff check . && uv run ruff format .
+uv run mypy
+```
+
+Dev tooling lives in a PEP 735 dependency group rather than an extra, so it is not
+installable from the published package. CI runs `uv sync --frozen`, which fails if
+`uv.lock` has drifted from `pyproject.toml` — a dependency change cannot land without
+its lockfile.
 
 ## Configure
 
@@ -128,17 +146,28 @@ The `openai` provider negotiates structured output down through JSON-schema mode
 mode, and finally prompt-only parsing, because self-hosted endpoints advertise OpenAI
 compatibility at very different levels of fidelity.
 
+For a vendor that is neither Anthropic- nor OpenAI-shaped — Bedrock, Vertex, Gemini,
+Cohere — use the `litellm` provider, which turns the vendor into a model string:
+
+```yaml
+llm: { provider: litellm, model: bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0 }
+```
+
+There is deliberately no LangChain dependency. The agent makes two single-turn JSON
+calls — no chains, no tool loop, no retrieval — so a framework would replace this
+30-line abstraction with a larger one without removing any of the work.
+
 Adding a provider that is not OpenAI-shaped is one file:
 
 ```python
 from api_docs_agent.llm import LLMProvider, register_provider
 
+
 @register_provider
 class MyProvider(LLMProvider):
     name = "my-provider"
 
-    def complete(self, *, system, prompt, max_tokens=None) -> str:
-        ...
+    def complete(self, *, system, prompt, max_tokens=None) -> str: ...
 ```
 
 `complete_json()` is inherited — it prompts for JSON and repairs the usual failures — so

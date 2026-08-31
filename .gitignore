@@ -12,3 +12,6 @@ build/
 htmlcov/
 .env
 .DS_Store
+
+# uv manages the environment; the lockfile is committed, the venv is not.
+.python-version.local

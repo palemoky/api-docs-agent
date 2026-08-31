@@ -24,21 +24,35 @@ dependencies = [
     "rich>=13.0",
 ]
 
+# Extras are the vendor SDKs behind the pluggable providers. Installing the
+# agent should not drag in every model vendor you do not use.
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40"]
 openai = ["openai>=1.40"]
+litellm = ["litellm>=1.50"]
 openapi = ["openapi-spec-validator>=0.7"]
 all = [
     "anthropic>=0.40",
     "openai>=1.40",
+    "litellm>=1.50",
     "openapi-spec-validator>=0.7",
 ]
+
+# PEP 735. Development tooling is not an extra: nobody installing the published
+# package should be able to `pip install api-docs-agent[dev]`.
+[dependency-groups]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "ruff>=0.6",
     "mypy>=1.11",
+    "types-PyYAML>=6.0",
 ]
+
+[tool.uv]
+# Extras the contributor environment always gets, so `uv sync` alone gives you a
+# checkout where the whole test suite runs.
+default-groups = ["dev"]
 
 [project.scripts]
 api-docs-agent = "api_docs_agent.cli:app"

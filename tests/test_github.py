@@ -58,9 +58,7 @@ def test_create_pull_request_labels_and_returns_it() -> None:
             return httpx.Response(201, json={"number": 12, "html_url": "https://x/12"})
         return httpx.Response(200, json={})
 
-    pr = _target(handler).create_pull_request(
-        head="docs/x", base="main", title="t", body="b"
-    )
+    pr = _target(handler).create_pull_request(head="docs/x", base="main", title="t", body="b")
 
     assert (pr.number, pr.url) == (12, "https://x/12")
     assert "POST /repos/acme/demo/issues/12/labels" in calls
@@ -91,9 +89,10 @@ def test_a_decoration_failure_does_not_lose_the_pull_request() -> None:
             return httpx.Response(200, json=[])
         return httpx.Response(201, json={"number": 9, "html_url": "https://x/9"})
 
-    assert _target(handler).create_pull_request(
-        head="docs/x", base="main", title="t", body="b"
-    ).number == 9
+    assert (
+        _target(handler).create_pull_request(head="docs/x", base="main", title="t", body="b").number
+        == 9
+    )
 
 
 def test_api_errors_surface_as_vcs_errors() -> None:

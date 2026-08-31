@@ -9,9 +9,7 @@ from api_docs_agent.vcs import GitRepo
 
 
 def git(repo: Path, *args: str) -> str:
-    proc = subprocess.run(
-        ["git", *args], cwd=repo, capture_output=True, text=True, check=True
-    )
+    proc = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True)
     return proc.stdout.strip()
 
 
