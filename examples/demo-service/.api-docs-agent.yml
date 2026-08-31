@@ -1,0 +1,26 @@
+# Config used by the end-to-end demo. See README.md -> "Try it in five minutes".
+llm:
+  provider: anthropic
+  model: claude-opus-5
+  api_key: ${ANTHROPIC_API_KEY}
+
+docs:
+  sources:
+    - path: examples/demo-service/docs/openapi.yaml
+      type: openapi
+      description: The demo service's public REST API.
+  style_guide: |
+    Every schema property needs a `description`. Keep summaries under 60 characters.
+
+detect:
+  watch_paths:
+    - "examples/demo-service/src/**/*.py"
+  ignore_paths:
+    - "**/tests/**"
+
+github:
+  token: ${GITHUB_TOKEN}
+  branch_prefix: docs/api-sync
+
+notifiers:
+  - type: console

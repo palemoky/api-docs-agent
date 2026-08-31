@@ -1,0 +1,81 @@
+openapi: 3.0.3
+info:
+  title: Demo Service
+  version: 1.0.0
+  description: A small user API used to demonstrate api-docs-agent.
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List every user
+      responses:
+        '200':
+          description: The full list of users.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      operationId: createUser
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: The user that was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /users/{user_id}:
+    get:
+      operationId: getUser
+      summary: Fetch a single user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The requested user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: No user exists with that id.
+components:
+  schemas:
+    User:
+      type: object
+      required: [id, name, email]
+      properties:
+        id:
+          type: integer
+          description: Stable identifier assigned at creation.
+        name:
+          type: string
+          description: Display name.
+        email:
+          type: string
+          format: email
+          description: Contact address, unique per user.
+    CreateUserRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          description: Display name.
+        email:
+          type: string
+          format: email
+          description: Contact address, unique per user.

@@ -1,0 +1,47 @@
+# Copy this file into the repository whose API documentation you want kept in sync.
+name: API docs sync
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Base ref to diff from
+        required: false
+
+permissions:
+  contents: write        # push the docs branch
+  pull-requests: write   # open the pull request
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The agent diffs a commit range, so it needs history, not a shallow clone.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the agent
+        run: pip install 'api-docs-agent[anthropic,openapi] @ git+https://github.com/Palemoky/api-docs-agent'
+
+      - name: Configure the commit identity
+        run: |
+          git config user.name  "api-docs-agent[bot]"
+          git config user.email "api-docs-agent[bot]@users.noreply.github.com"
+
+      - name: Check whether the documentation is out of date
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+        run: |
+          api-docs-agent check \
+            --base "${{ github.event.inputs.base || github.event.before }}" \
+            --head "${{ github.sha }}" \
+            --verbose
