@@ -43,17 +43,18 @@ class OpenAICompatProvider(LLMProvider):
         return kwargs
 
     def complete(self, *, system: str, prompt: str, max_tokens: int | None = None) -> str:
-        response = self._client().chat.completions.create(
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": prompt},
-            ],
-            **self._request_kwargs(max_tokens),
-        )
-        content = response.choices[0].message.content
-        if not content:
-            raise LLMError("Model returned an empty response")
-        return content
+        with self._wrap_errors():
+            response = self._client().chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                **self._request_kwargs(max_tokens),
+            )
+            content = response.choices[0].message.content
+            if not content:
+                raise LLMError("Model returned an empty response")
+            return content
 
     def complete_json(
         self,

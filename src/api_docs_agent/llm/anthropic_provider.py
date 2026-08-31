@@ -6,6 +6,7 @@ back as guaranteed-valid JSON instead of prose we have to repair.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from ..errors import LLMError
@@ -40,14 +41,15 @@ class AnthropicProvider(LLMProvider):
         return kwargs
 
     def complete(self, *, system: str, prompt: str, max_tokens: int | None = None) -> str:
-        client = self._client()
-        with client.messages.stream(
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-            **self._request_kwargs(max_tokens),
-        ) as stream:
-            message = stream.get_final_message()
-        return _first_text(message)
+        with self._wrap_errors():
+            client = self._client()
+            with client.messages.stream(
+                system=system,
+                messages=[{"role": "user", "content": prompt}],
+                **self._request_kwargs(max_tokens),
+            ) as stream:
+                message = stream.get_final_message()
+            return _first_text(message)
 
     def complete_json(
         self,
@@ -57,17 +59,16 @@ class AnthropicProvider(LLMProvider):
         schema: dict[str, Any],
         max_tokens: int | None = None,
     ) -> dict[str, Any]:
-        import json
-
-        client = self._client()
-        with client.messages.stream(
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-            output_config={"format": {"type": "json_schema", "schema": schema}},
-            **self._request_kwargs(max_tokens),
-        ) as stream:
-            message = stream.get_final_message()
-        return json.loads(_first_text(message))
+        with self._wrap_errors():
+            client = self._client()
+            with client.messages.stream(
+                system=system,
+                messages=[{"role": "user", "content": prompt}],
+                output_config={"format": {"type": "json_schema", "schema": schema}},
+                **self._request_kwargs(max_tokens),
+            ) as stream:
+                message = stream.get_final_message()
+            return json.loads(_first_text(message))
 
 
 def _first_text(message: Any) -> str:

@@ -12,7 +12,7 @@ not what the answer is.
 from __future__ import annotations
 
 import re
-from fnmatch import fnmatch
+from functools import lru_cache
 
 from .config import DetectConfig
 from .models import CodeChange, FileDiff, PreFilterResult, RelevanceSignal
@@ -46,16 +46,39 @@ def _is_watched(path: str, config: DetectConfig) -> bool:
     return any(glob_match(path, pattern) for pattern in config.watch_paths)
 
 
-def glob_match(path: str, pattern: str) -> bool:
-    """`fnmatch` with the `**/` prefix people actually expect.
+@lru_cache(maxsize=512)
+def _compile_glob(pattern: str) -> re.Pattern[str]:
+    """Translate a gitignore-style glob into a regex.
 
-    `fnmatch` never anchors, so `**/tests/**` fails to match `tests/a.py` - there
-    is nothing for the leading `**/` to consume. Everyone writes the pattern that
-    way anyway, so treat the prefix as "zero or more leading directories".
+    `fnmatch` is not usable here: its `*` happily crosses `/` (so `src/*.py`
+    would match `src/a/b.py`), and its `**/` cannot match zero directories (so
+    `src/**/*.py` would miss `src/app.py`) - which is exactly the pattern people
+    write in a config file.
     """
-    if fnmatch(path, pattern):
-        return True
-    return pattern.startswith("**/") and fnmatch(path, pattern[3:])
+    out: list[str] = []
+    i, n = 0, len(pattern)
+    while i < n:
+        char = pattern[i]
+        if pattern.startswith("**/", i):
+            out.append("(?:[^/]+/)*")  # zero or more directories
+            i += 3
+        elif pattern.startswith("**", i):
+            out.append(".*")
+            i += 2
+        elif char == "*":
+            out.append("[^/]*")
+            i += 1
+        elif char == "?":
+            out.append("[^/]")
+            i += 1
+        else:
+            out.append(re.escape(char))
+            i += 1
+    return re.compile(f"^{''.join(out)}$")
+
+
+def glob_match(path: str, pattern: str) -> bool:
+    return _compile_glob(pattern).match(path) is not None
 
 
 def _signal_reasons(file: FileDiff, patterns: list[re.Pattern[str]]) -> list[str]:

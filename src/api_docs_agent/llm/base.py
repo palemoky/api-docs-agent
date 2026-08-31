@@ -9,12 +9,14 @@ decides how to get it. Adding a vendor means writing `complete()` and calling
 from __future__ import annotations
 
 import abc
+import contextlib
 import json
 import re
+from collections.abc import Iterator
 from typing import Any
 
 from ..config import LLMConfig
-from ..errors import LLMError
+from ..errors import AgentError, LLMError
 
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 
@@ -31,6 +33,21 @@ class LLMProvider(abc.ABC):
     @abc.abstractmethod
     def complete(self, *, system: str, prompt: str, max_tokens: int | None = None) -> str:
         """Return the model's text response for a single-turn request."""
+
+    @contextlib.contextmanager
+    def _wrap_errors(self) -> Iterator[None]:
+        """Turn any vendor SDK exception into an `LLMError`.
+
+        A provider is a plugin boundary: the pipeline handles `AgentError` and
+        reports it cleanly, and should never have to know that one backend raises
+        `TypeError` for a missing key while another raises its own class.
+        """
+        try:
+            yield
+        except AgentError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - deliberate boundary
+            raise LLMError(f"{self.describe()} request failed: {exc}") from exc
 
     def complete_json(
         self,

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_CONFIG_NAMES = (
     ".api-docs-agent.yml",
@@ -22,6 +22,18 @@ DEFAULT_CONFIG_NAMES = (
 )
 
 _ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
+
+
+def _blank_to_none(value: Any) -> Any:
+    """Treat an unset `${VAR}` as absent rather than as an empty credential.
+
+    Interpolation turns a missing environment variable into `""`. Passing that
+    through as an API key or token defeats each SDK's own credential discovery
+    and produces a confusing error deep inside the vendor library.
+    """
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
 
 
 class LLMConfig(BaseModel):
@@ -40,6 +52,11 @@ class LLMConfig(BaseModel):
     temperature: float | None = None
     timeout_seconds: float = 300.0
     extra: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("api_key", "base_url", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: Any) -> Any:
+        return _blank_to_none(value)
 
 
 class DetectConfig(BaseModel):
@@ -113,6 +130,11 @@ class GitHubConfig(BaseModel):
     labels: list[str] = Field(default_factory=lambda: ["documentation", "automated"])
     reviewers: list[str] = Field(default_factory=list)
     draft: bool = False
+
+    @field_validator("repository", "token", "base_branch", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: Any) -> Any:
+        return _blank_to_none(value)
 
 
 class NotifierConfig(BaseModel):
