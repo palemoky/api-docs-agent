@@ -39,6 +39,12 @@ def get_user(user_id: int) -> User:
     return _USERS[user_id]
 
 
+@app.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: int) -> None:
+    """Delete a user. Idempotent: deleting a missing user still returns 204."""
+    _USERS.pop(user_id, None)
+
+
 @app.post("/users", response_model=User, status_code=201)
 def create_user(payload: CreateUserRequest) -> User:
     """Create a user."""
